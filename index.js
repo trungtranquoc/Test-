@@ -15,12 +15,12 @@ mongoose.connect("mongodb+srv://GDSC:gdscurlshortener123@cluster0.4mncv.mongodb.
 
 const UserSchema = new Schema({
     username: {type: String, unique: true, required: true}, 
-    password: String
+    password: String, 
 })
 
-const UserModel = mongoose.model('HieuPractice', UserSchema)
+const UserModel = mongoose.model('hieupractices', UserSchema)
 
-app.post('/Student/SignUp', async (req, res) => {
+app.post('/SignUp', async (req, res) => {
   try {
     var { username,password } = req.body; 
   const user = new UserModel();
@@ -66,6 +66,50 @@ app.post('/Login', async (req, res) => {
     } catch (error) {
       res.send(error.message) 
     }
+})
+
+app.get('/getAllUsername', async (req, res) => {
+  const checkUser = await UserModel.find(); 
+
+  console.log(checkUser)
+  if (!checkUser) {
+    res.send({Message: `No note has been made`})
+  }
+
+  res.send({Message: `List`,note: checkUser} )
+})
+
+//Tạo file note trog tài khoản :
+const NoteSchema = new Schema({
+  title: String ,
+  note: String ,
+  LastUpdate: String
+})
+
+const NoteModel = mongoose.model('hieuNote', NoteSchema) 
+
+//Tạo note
+app.post('/createNote', async (req, res) => {
+    const { title,note } = req.body;
+    const Note = new NoteModel(); 
+
+    Note.title = title; 
+    Note.note = note; 
+    //Note.LastUpdate = tgian lúc tạo ...  
+    await Note.save();
+
+    res.send({Message: `New note created` });
+})
+
+//hiện toàn bộ note
+app.post('/getAllNotes', async (req, res) => {
+  const checkNote = await NoteModel.find(); 
+
+  if (!checkNote) {
+    res.send({Message: `No note has been made`})
+  }
+
+  res.send({Message: `List`, note: checkNote} )
 })
 
 app.listen(port, () => {
