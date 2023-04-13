@@ -1,8 +1,10 @@
 const { model } = require("mongoose");
 const { UserModel,NoteModel } = require("../model/model"); 
 
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 const saltRounds = 12;
+const SECRET = "Hieudeptrai"; 
 
 const userController = {
 
@@ -35,6 +37,7 @@ const userController = {
         }
       },
 
+    // Login into an username 
     Login : async (req, res) => {
         try{
         const { username,password } = req.body; 
@@ -43,7 +46,7 @@ const userController = {
           throw Error("No username or password")
         }
   
-        const users = await UserModel.findOne({username: username})
+        const users = await UserModel.findOne({username: username}).populate("title"); 
         if (!users){
           throw Error(`No username match`)
         }
@@ -52,18 +55,51 @@ const userController = {
         if (!isMatch){
           throw Error('Wrong password')
         }
-        res.send({Message: 'Login successfully', users: users})
+        const token = jwt.sign({
+          data: {
+              userId: users._id
+          }
+      }, SECRET, { expiresIn: 60*60*24});
+
+        res.send({Message: 'Login successfully', usersname: users, token: token})
       } catch (error) {
         res.send(error.message) 
       }
   },
 
+  // Change password: 
+    ChangePassword : async (req, res) => {
+      try {
+        const { newPassword } = req.body
+        const authHeader = req.headers.authorization;
+        const token = authHeader.split(' ')[1];
+    
+        const decoded = jwt.verify(token, SECRET);
+        const { userId } = decoded.data;
+        const user = await UserModel.findById(userId);
+        if (!user) throw Error("User not exist");
+        user.password = await bcrypt.hash(newPassword, saltRounds);
+        user.save();
+        res.send(`Change PassWord successfully`); 
+      } catch (err) {
+        res.status(200).json({Message: err})
+      }
+        
+    },
+
   // Delete an user: 
     DeleteUser: async(req, res) => {
         try {
-          await NoteModel.updateMany({userid: req.params.userid}, {userid: null}); 
+          const check = await UserModel.findById(req.params.userid); 
+          if (!check) throw Error("User not exist"); 
+          var length = check.title.length; 
+          for (let i=0; i<length; i++){
+            await NoteModel.findByIdAndDelete(check.title[i]);
+          }
+
+          // await NoteModel.updateMany({userid: req.params.userid}, {userid: null}); 
           await UserModel.findByIdAndDelete(req.params.userid);
-          res.send("Delete User successfully");  
+          res.send(`Delete successfully`);  
         } catch (err) {
           res.status(500).json(err); 
         }
